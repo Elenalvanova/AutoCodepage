@@ -330,8 +330,9 @@ begin
 
 //    for ALangType := Low(TNppLang) to Pred(High(TNppLang)) do
 //    begin
-//      // Ignore user defined languages
+//      // Ignore user defined languages and deprecated JavaScript language id
 //      if ALangType = L_USER then continue;
+//      if ALangType = L_JS   then continue;
 //
 //      ALangName := Plugin.GetLanguageName(ALangType);
 //      CbxItems.AddObject(UpCase(ALangName[1]), TObject(C_GROUP_HDR));
@@ -341,8 +342,9 @@ begin
     ALangType := Ord(Low(TNppLang));
 
     repeat
-      // Ignore user defined languages
-      if ALangType <> Ord(L_USER) then
+      // Ignore user defined languages and deprecated JavaScript language id
+      if (ALangType <> Ord(L_USER)) and
+         (ALangType <> Ord(L_JS)  ) then
       begin
         ALangName := Plugin.GetLanguageName(TNppLang(ALangType));
 
