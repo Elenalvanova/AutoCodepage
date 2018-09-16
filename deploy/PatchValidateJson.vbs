@@ -96,8 +96,9 @@ End If
 objJsonFile.Content.Item(strPluginName).RemoveAll
 objJsonFile.Content.Item(strPluginName).Add WScript.Arguments(0), strPluginName & ".dll"
 
-'Set indentation of JSON data output
-objJsonFile.Indent = 4
+'Set bracket style and indentation of JSON data output
+objJsonFile.BracketStyle = BracketStyleJava
+objJsonFile.Indent       = 4
 
 'Save JSON data to file
 objJsonFile.SaveToFile strJsonFile, AsAnsi

@@ -26,6 +26,10 @@
 '==============================================================================
 
 
+Const BracketStyleAllman = 0
+Const BracketStyleJava   = 1
+
+
 Class clsJsonFile
   Private intContextLookup
   Private intStateError
@@ -55,10 +59,16 @@ Class clsJsonFile
 
   Private arrStateTable
 
+  Private intState
+  Private intLCnt
+  Private strItem, strKey
+
   Private objFSO, objRegEx, dicJsonFile
   Private arrStack, intStackPtr
+  Private varCurDataStore
   Private intDebugLevel
   Private intIndent
+  Private intBracketStyle
 
 
   '----------------------------------------------------------------------------
@@ -70,6 +80,8 @@ Class clsJsonFile
     '  - 1: Brief debug output
     '  - 2: Verbose debug output
     intDebugLevel           = 0
+
+    intBracketStyle         = BracketStyleAllman
 
     intIndent               = 2
 
@@ -237,6 +249,12 @@ Class clsJsonFile
   '----------------------------------------------------------------------------
   Private Sub Clear
     dicJsonFile.RemoveAll
+
+    Set varCurDataStore = dicJsonFile
+    intState            = intStateAwaitValue
+    intLCnt             = 0
+    strItem             = ""
+    strKey              = ""
   End Sub
 
 
@@ -268,6 +286,19 @@ Class clsJsonFile
 
 
   '----------------------------------------------------------------------------
+  'Get/Set bracket style for JSON data output
+  '----------------------------------------------------------------------------
+  Public Property Get BracketStyle
+    BracketStyle = intBracketStyle
+  End Property
+
+
+  Public Property Let BracketStyle(intValue)
+    intBracketStyle = intValue
+  End Property
+
+
+  '----------------------------------------------------------------------------
   'Get formatted JSON data
   '----------------------------------------------------------------------------
   Public Function ToString(bolClean)
@@ -294,14 +325,35 @@ Class clsJsonFile
 
 
   '----------------------------------------------------------------------------
-  'Load and parse JSON file and create a data model
+  'Load a JSON string and parse the data structure
+  '----------------------------------------------------------------------------
+  Public Function LoadFromString(ByRef strJsonString)
+    Dim arrJsonString, intIdx
+
+    Clear
+
+    If strJsonString = "" Then
+      LoadFromString = False
+      Exit Function
+    End If
+
+    arrJsonString = Split(strJsonString, vbNewLine)
+
+    For intIdx = 0 To UBound(arrJsonString)
+      intLCnt = intLCnt + 1
+      If Not ParseLine(arrJsonString(intIdx)) Then Exit For
+    Next
+
+    LoadFromString = (intState = intStateObjectRead Or intState = intStateArrayRead) And _
+                     intStackPtr = -1
+  End Function
+
+
+  '----------------------------------------------------------------------------
+  'Load a JSON file and parse the data structure
   '----------------------------------------------------------------------------
   Public Function LoadFromFile(ByRef strFilePath, intEncoding)
-    Dim objInStream, strLine, strChar, intLineLen, intLCnt, intCCnt
-    Dim intState, strItem, strKey
-    Dim arrStateData, intCnt, intStateCnt
-    Dim strCheck, intNewState
-    Dim varCurDataStore, varParentDataStore
+    Dim objInStream
 
     Clear
 
@@ -310,163 +362,170 @@ Class clsJsonFile
       Exit Function
     End If
 
-    Set objInStream     = objFSO.OpenTextFile(strFilePath, 1, False, intEncoding)
-    Set varCurDataStore = dicJsonFile
-
-    intState = intStateAwaitValue
-    intLCnt  = 0
-    strItem  = ""
-    strKey   = ""
+    Set objInStream = objFSO.OpenTextFile(strFilePath, 1, False, intEncoding)
 
     Do While Not objInStream.AtEndOfStream
-      strLine    = objInStream.ReadLine
-      intLineLen = Len(strLine)
-      intLCnt    = intLCnt + 1
-
-      For intCCnt = 1 To intLineLen
-        strChar      = Mid(strLine, intCCnt, 1)
-        arrStateData = arrStateTable(intState)
-
-        If strChar <> " " Or intState = intStateReadKey Or intState = intStateReadString Then
-          DebugOutput 1, strLine, strChar, intState
-
-          For intCnt = 1 To UBound(arrStateData)
-            objRegEx.Pattern = arrStateData(intCnt)(0)
-            If objRegEx.Test(strChar) Then Exit For
-          Next
-
-          If intCnt <= UBound(arrStateData) Then
-            For intStateCnt = 0 To UBound(arrStateData(intCnt)(1))
-              intNewState = arrStateData(intCnt)(1)(intStateCnt)
-
-              If intNewState = intContextLookup Then
-                intNewState = AwaitStateByContext(varCurDataStore)
-              End If
-
-              Select Case intNewState
-                Case intStateReadKey
-                  If intNewState = intState Then
-                    strItem = strItem & strChar
-                  End If
-
-                Case intStateReadConst, _
-                     intStateReadNumber
-                  strItem  = strItem & strChar
-
-                Case intStateReadString
-                  If intNewState = intState Or _
-                     intState    = intStateReadEscapeChar Then
-                    strItem = strItem & strChar
-                  End If
-
-                Case intStateReadEscapeChar
-                  strItem  = strItem & strChar
-
-                Case intStateReadArray
-                  Call StackPush(strKey, varCurDataStore)
-
-                  varCurDataStore = Array()
-                  strKey          = ""
-
-                Case intStateReadObject
-                  Call StackPush(strKey, varCurDataStore)
-
-                  Set varCurDataStore         = CreateObject("Scripting.Dictionary")
-                  varCurDataStore.CompareMode = vbTextCompare
-                  strKey                      = ""
-
-                Case intStateKeyRead, _
-                     intStateConstRead, _
-                     intStateNumberRead, _
-                     intStateStringRead
-                  strCheck = arrStateData(0)
-
-                  If strCheck <> "" Then
-                    objRegEx.Pattern = strCheck
-
-                    If Not objRegEx.Test(strItem) Then
-                      DebugOutput 2, strLine, strChar, intNewState
-                      intNewState = intStateError
-                    End If
-                  End If
-
-                  Select Case intNewState
-                    Case intStateKeyRead
-                      If strItem <> "" Then
-                        strKey  = strItem
-                        strItem = ""
-                      Else
-                        DebugOutput 3, strLine, strChar, intNewState
-                        intNewState = intStateError
-                      End If
-
-                    Case intStateConstRead, _
-                         intStateNumberRead, _
-                         intStateStringRead
-                      If strKey <> "" Or IsArrayContext(varCurDataStore) Then
-                        If StoreData(varCurDataStore, strKey, strItem) Then
-                          strKey  = ""
-                          strItem = ""
-                        Else
-                          DebugOutput 4, strLine, strChar, intNewState
-                          intNewState = intStateError
-                        End If
-                      Else
-                        DebugOutput 5, strLine, strChar, intNewState
-                        intNewState = intStateError
-                      End If
-                  End Select
-
-                Case intStateArrayRead, _
-                     intStateObjectRead
-                  If intStackPtr >= 0 Then
-                    Call StackPop(strKey, varParentDataStore)
-
-                    If strKey <> "" Or IsArrayContext(varParentDataStore) _
-                                    Or IsSameObject(varParentDataStore, dicJsonFile) Then
-                      If StoreData(varParentDataStore, strKey, varCurDataStore) Then
-                        If IsObject(varParentDataStore) Then
-                          Set varCurDataStore = varParentDataStore
-                        Else
-                          varCurDataStore = varParentDataStore
-                        End If
-
-                        strKey  = ""
-                        strItem = ""
-                      Else
-                        DebugOutput 6, strLine, strChar, intNewState
-                        intNewState = intStateError
-                      End If
-                    End If
-                  Else
-                    DebugOutput 7, strLine, strChar, intNewState
-                    intNewState = intStateError
-                  End If
-              End Select
-
-              DebugOutput 8, strLine, strChar, intNewState
-            Next
-          Else
-            DebugOutput 9, strLine, strChar, intNewState
-            intNewState = intStateError
-          End If
-
-          intState = intNewState
-
-          If intState = intStateError Then
-            PrintErrorMessage intLCnt, intCCnt
-            Exit For
-          End If
-        End If
-      Next
-
-      If intState = intStateError Then Exit Do
+      intLCnt = intLCnt + 1
+      If Not ParseLine(objInStream.ReadLine) Then Exit Do
     Loop
 
     objInStream.Close
 
     LoadFromFile = (intState = intStateObjectRead Or intState = intStateArrayRead) And _
                    intStackPtr = -1
+  End Function
+
+
+  '----------------------------------------------------------------------------
+  'Parse JSON data from a string and create a data model
+  '----------------------------------------------------------------------------
+  Private Function ParseLine(ByRef strLine)
+    Dim intLineLen, intCCnt, strChar
+    Dim arrStateData, intCnt, intStateCnt
+    Dim strCheck, intNewState
+    Dim varParentDataStore
+
+    intLineLen = Len(strLine)
+
+    For intCCnt = 1 To intLineLen
+      strChar      = Mid(strLine, intCCnt, 1)
+      arrStateData = arrStateTable(intState)
+
+      If strChar <> " " Or intState = intStateReadKey Or intState = intStateReadString Then
+        DebugOutput 1, strLine, strChar, intState
+
+        For intCnt = 1 To UBound(arrStateData)
+          objRegEx.Pattern = arrStateData(intCnt)(0)
+          If objRegEx.Test(strChar) Then Exit For
+        Next
+
+        If intCnt <= UBound(arrStateData) Then
+          For intStateCnt = 0 To UBound(arrStateData(intCnt)(1))
+            intNewState = arrStateData(intCnt)(1)(intStateCnt)
+
+            If intNewState = intContextLookup Then
+              intNewState = AwaitStateByContext(varCurDataStore)
+            End If
+
+            Select Case intNewState
+              Case intStateReadKey
+                If intNewState = intState Then
+                  strItem = strItem & strChar
+                End If
+
+              Case intStateReadConst, _
+                   intStateReadNumber
+                strItem  = strItem & strChar
+
+              Case intStateReadString
+                If intNewState = intState Or _
+                   intState    = intStateReadEscapeChar Then
+                  strItem = strItem & strChar
+                End If
+
+              Case intStateReadEscapeChar
+                strItem  = strItem & strChar
+
+              Case intStateReadArray
+                Call StackPush(strKey, varCurDataStore)
+
+                varCurDataStore = Array()
+                strKey          = ""
+
+              Case intStateReadObject
+                Call StackPush(strKey, varCurDataStore)
+
+                Set varCurDataStore         = CreateObject("Scripting.Dictionary")
+                varCurDataStore.CompareMode = vbTextCompare
+                strKey                      = ""
+
+              Case intStateKeyRead, _
+                   intStateConstRead, _
+                   intStateNumberRead, _
+                   intStateStringRead
+                strCheck = arrStateData(0)
+
+                If strCheck <> "" Then
+                  objRegEx.Pattern = strCheck
+
+                  If Not objRegEx.Test(strItem) Then
+                    DebugOutput 2, strLine, strChar, intNewState
+                    intNewState = intStateError
+                  End If
+                End If
+
+                Select Case intNewState
+                  Case intStateKeyRead
+                    If strItem <> "" Then
+                      strKey  = strItem
+                      strItem = ""
+                    Else
+                      DebugOutput 3, strLine, strChar, intNewState
+                      intNewState = intStateError
+                    End If
+
+                  Case intStateConstRead, _
+                       intStateNumberRead, _
+                       intStateStringRead
+                    If strKey <> "" Or IsArrayContext(varCurDataStore) Then
+                      If StoreData(varCurDataStore, strKey, strItem) Then
+                        strKey  = ""
+                        strItem = ""
+
+                      Else
+                        DebugOutput 4, strLine, strChar, intNewState
+                        intNewState = intStateError
+                      End If
+                    Else
+                      DebugOutput 5, strLine, strChar, intNewState
+                      intNewState = intStateError
+                    End If
+                End Select
+
+              Case intStateArrayRead, _
+                   intStateObjectRead
+                If intStackPtr >= 0 Then
+                  Call StackPop(strKey, varParentDataStore)
+
+                  If strKey <> "" Or IsArrayContext(varParentDataStore) _
+                                  Or IsSameObject(varParentDataStore, dicJsonFile) Then
+                    If StoreData(varParentDataStore, strKey, varCurDataStore) Then
+                      If IsObject(varParentDataStore) Then
+                        Set varCurDataStore = varParentDataStore
+                      Else
+                        varCurDataStore = varParentDataStore
+                      End If
+
+                      strKey  = ""
+                      strItem = ""
+                    Else
+                      DebugOutput 6, strLine, strChar, intNewState
+                      intNewState = intStateError
+                    End If
+                  End If
+                Else
+                  DebugOutput 7, strLine, strChar, intNewState
+                  intNewState = intStateError
+                End If
+            End Select
+
+            DebugOutput 8, strLine, strChar, intNewState
+          Next
+        Else
+          DebugOutput 9, strLine, strChar, intNewState
+          intNewState = intStateError
+        End If
+
+        intState = intNewState
+
+        If intState = intStateError Then
+          PrintErrorMessage intLCnt, intCCnt
+          Exit For
+        End If
+      End If
+    Next
+
+    ParseLine = (intState <> intStateError)
   End Function
 
 
@@ -630,22 +689,50 @@ Class clsJsonFile
       End If
 
       If IsObject(varValue) Then
-        If strKey <> "" Then strLine = strLine & strIndent & """" & strKey & """:" & vbNewLine
+        Select Case intBracketStyle
+          Case BracketStyleAllman:
+            If strKey <> "" Then
+              strLine = strLine & strIndent & """" & strKey & """:" & vbNewLine
+            End If
 
-        strLine = strLine & strIndent & "{" & vbNewLine & _
-                            PrintJsonDic(varValue, strIndent & String(intIndent, " "), bolClean) & _
-                            strIndent & "}"
+            strLine = strLine & strIndent & "{" & vbNewLine & _
+                                PrintJsonDic(varValue, strIndent & String(intIndent, " "), bolClean) & _
+                                strIndent & "}"
+
+          Case Else  'BracketStyleJava:
+            If strKey <> "" Then
+              strLine = strLine & strIndent & """" & strKey & """: {" & vbNewLine
+            Else
+              strLine = strLine & strIndent & "{" & vbNewLine
+            End If
+
+            strLine = strLine & PrintJsonDic(varValue, strIndent & String(intIndent, " "), bolClean) & _
+                                strIndent & "}"
+        End Select
 
       ElseIf IsArray(varValue) Then
-        If strKey <> "" Then
-          strLine = strLine & strIndent & """" & strKey & """: " & vbNewLine
-        Else
-          strLine = ""
-        End If
-        
-        strLine = strLine & strIndent & "[" & vbNewLine & _
-                            PrintJsonArr(varValue, strIndent & String(intIndent, " "), bolClean) & _
-                            strIndent & "]"
+        Select Case intBracketStyle
+          Case BracketStyleAllman:
+            If strKey <> "" Then
+              strLine = strLine & strIndent & """" & strKey & """: " & vbNewLine
+            Else
+              strLine = ""
+            End If
+
+            strLine = strLine & strIndent & "[" & vbNewLine & _
+                                PrintJsonArr(varValue, strIndent & String(intIndent, " "), bolClean) & _
+                                strIndent & "]"
+
+          Case Else  'BracketStyleJava:
+            If strKey <> "" Then
+              strLine = strLine & strIndent & """" & strKey & """: [" & vbNewLine
+            Else
+              strLine = strLine & strIndent & "[" & vbNewLine
+            End If
+
+            strLine = strLine & PrintJsonArr(varValue, strIndent & String(intIndent, " "), bolClean) & _
+                                strIndent & "]"
+        End Select
 
       ElseIf IsNumeric(varValue) Then
         strLine = strLine & strIndent & """" & strKey & """: " & varValue
