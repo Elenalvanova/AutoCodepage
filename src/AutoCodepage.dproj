@@ -97,13 +97,14 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<DCCReference Include="Lib\SciSupport.pas"/>
 			<DCCReference Include="Main.pas"/>
 			<DCCReference Include="DataModule.pas"/>
+			<DCCReference Include="FileVersionInfo.pas"/>
+			<DCCReference Include="VclExtend.pas"/>
 			<DCCReference Include="dialog_TfrmAbout.pas">
 				<Form>frmAbout</Form>
 			</DCCReference>
 			<DCCReference Include="dialog_TfrmSettings.pas">
 				<Form>frmSettings</Form>
 			</DCCReference>
-			<DCCReference Include="VclExtend.pas"/>
 			<None Include="..\README.md"/>
 			<None Include="..\doc\AutoCodepage.txt"/>
 			<BuildConfiguration Include="Release">

@@ -58,6 +58,8 @@ type
     FPluginMajorVersion:  integer;
     FPluginMinorVersion:  integer;
     FPluginReleaseNumber: integer;
+    FPluginBuildNumber:   integer;
+    FPluginCopyRight:     string;
     FSCNotification:      PSCNotification;
     FFuncArray:           array of TFuncItem;
 
@@ -122,11 +124,15 @@ type
     function    GetMajorVersion: integer;
     function    GetMinorVersion: integer;
     function    GetReleaseNumber: integer;
+    function    GetBuildNumber: integer;
+    function    GetCopyRight: string;
+
     function    GetNppDir: string;
     function    GetPluginsDir: string;
     function    GetPluginsConfigDir: string;
     function    GetPluginsDocDir: string;
     function    GetPluginDllPath: string;
+
     function    GetOpenFilesCnt(CntType: integer): integer;
     function    GetOpenFiles(CntType: integer): TStringDynArray;
     function    GetFullCurrentPath: string;
@@ -155,6 +161,9 @@ type
 
 
 implementation
+
+uses
+  FileVersionInfo;
 
 
 // =============================================================================
@@ -292,38 +301,20 @@ end;
 procedure TNppPlugin.GetVersionInfo;
 var
   lptstrFilename: string;
-  dwHandle:       DWORD;
-  dwLen:          DWORD;
-  lpData:         pointer;
-  puLen:          DWORD;
-  FileInfo:       PVSFixedFileInfo;
+  wLangId:        Word;
 
 begin
-  FPluginMajorVersion  := 0;
-  FPluginMinorVersion  := 0;
+  wLangId := wLangIdEnglish;
 
   lptstrFilename := GetPluginDllPath;
   if not FileExists(lptstrFilename) then exit;
 
-  dwLen := GetFileVersionInfoSize(PChar(lptstrFilename), dwHandle);
-  if dwLen = 0 then exit;
+  TFileVersionInfo.GetNumericVersionInfo(lptstrFilename,       nfvitFileVersion,
+                                         FPluginMajorVersion,  FPluginMinorVersion,
+                                         FPluginReleaseNumber, FPluginBuildNumber);
 
-  GetMem(lpData, dwLen);
-
-  try
-    if GetFileVersionInfo(PChar(lptstrFilename), dwHandle, dwLen, lpData) then
-    begin
-      if VerQueryValue(lpData, '\', pointer(FileInfo), puLen) then
-      begin
-        FPluginMajorVersion  := (FileInfo.dwFileVersionMS) shr 16;
-        FPluginMinorVersion  := (FileInfo.dwFileVersionMS) and $FFFF;
-        FPluginReleaseNumber := (FileInfo.dwFileVersionLS) shr 16;
-      end;
-    end;
-
-  finally
-    FreeMem(lpData);
-  end;
+  TFileVersionInfo.GetVersionInfo(lptstrFilename, fvitLegalCopyright,
+                                  wLangId,        FPluginCopyRight);
 end;
 
 
@@ -387,6 +378,18 @@ end;
 function TNppPlugin.GetReleaseNumber: integer;
 begin
   Result := FPluginReleaseNumber;
+end;
+
+
+function TNppPlugin.GetBuildNumber: integer;
+begin
+  Result := FPluginBuildNumber;
+end;
+
+
+function TNppPlugin.GetCopyRight: string;
+begin
+  Result := FPluginCopyRight;
 end;
 
 

@@ -66,7 +66,7 @@ uses
 const
   TXT_TITLE:      string = 'About';
   TXT_HEADER:     string = 'Notepad++ %s Plugin v%d.%d.%d';
-  TXT_INFO:       string = '2016-2017 by Andreas Heim';
+  TXT_INFO:       string = '%s';
   TXT_READ_INFOS: string = 'Read some infos';
 
 
@@ -103,7 +103,7 @@ procedure TfrmAbout.FormCreate(Sender: TObject);
 begin
   Caption              := TXT_TITLE;
   lblHeader.Caption    := Format(TXT_HEADER, [Plugin.GetName, Plugin.GetMajorVersion, Plugin.GetMinorVersion, Plugin.GetReleaseNumber]);
-  lblInfo.Caption      := TXT_INFO;
+  lblInfo.Caption      := Format(TXT_INFO, [Plugin.GetCopyRight]);
   lblReadInfos.Caption := TXT_READ_INFOS;
 end;
 

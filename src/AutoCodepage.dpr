@@ -34,9 +34,11 @@ uses
 
   Main in 'Main.pas',
   DataModule in 'DataModule.pas',
+  FileVersionInfo in 'FileVersionInfo.pas',
+  VclExtend in 'VclExtend.pas',
+
   dialog_TfrmAbout in 'dialog_TfrmAbout.pas' {frmAbout},
-  dialog_TfrmSettings in 'dialog_TfrmSettings.pas' {frmSettings},
-  VclExtend in 'VclExtend.pas';
+  dialog_TfrmSettings in 'dialog_TfrmSettings.pas' {frmSettings};
 
 {$R *.res}
 
