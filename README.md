@@ -2,7 +2,7 @@
 
 Builds for 32 and 64 bits Notepad++ installations available
 
-Author: Andreas Heim, 2016 - 2017
+Author: Andreas Heim, 2016 - 2018
 
 
 # Why this plugin?
@@ -41,6 +41,12 @@ When one of these events fires the plugin gets invoked. After it has verified th
 
 
 # History
+
+v1.2.2 - July 2018
+- fixed: Entry of JavaScript in language combobox uses
+         deprecated language id. This fix is mandatory after
+         upgrading to Notepad++ v7.5.7 or higher.
+
 
 v1.2.1 - August 2017
 - enhanced: Language names get retrieved fully dynamical, no plugin update required after additional languages have been added to Notepad++.

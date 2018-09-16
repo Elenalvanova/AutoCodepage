@@ -34,7 +34,7 @@
 			<Base>true</Base>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base)'!=''">
-			<VerInfo_Release>1</VerInfo_Release>
+			<VerInfo_Release>2</VerInfo_Release>
 			<PostBuildEvent><![CDATA[cmd /c ".\BuildScripts\PostBuildScript.cmd $(CONFIG) $(PLATFORM)"
 $(PostBuildEvent)]]></PostBuildEvent>
 			<VerInfo_MinorVer>2</VerInfo_MinorVer>
@@ -51,7 +51,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<DCC_E>false</DCC_E>
 			<DCC_F>false</DCC_F>
 			<VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
-			<VerInfo_Keys>CompanyName=;FileDescription=A plugin for Notepad++ which automatically sets the codepage of a document according to users configuration;FileVersion=1.2.1.0;InternalName=;LegalCopyright=2017 by Andreas Heim;LegalTrademarks=;OriginalFilename=AutoCodepage.dll;ProductName=AutoCodepage;ProductVersion=1.2.1.0;Comments=A plugin for Notepad++</VerInfo_Keys>
+			<VerInfo_Keys>CompanyName=;FileDescription=A plugin for Notepad++ which automatically sets the codepage of a document according to users configuration;FileVersion=1.2.2.0;InternalName=;LegalCopyright=2016-2018 by Andreas Heim;LegalTrademarks=;OriginalFilename=AutoCodepage.dll;ProductName=AutoCodepage;ProductVersion=1.2.2.0;Comments=A plugin for Notepad++</VerInfo_Keys>
 			<VerInfo_Locale>1033</VerInfo_Locale>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base_Win64)'!=''">
@@ -61,7 +61,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base_Win32)'!=''">
-			<Debugger_RunParams>&quot;..\data\test.cmd&quot; &quot;..\data\test.cmd&quot;</Debugger_RunParams>
+			<Debugger_RunParams>&quot;..\data\test.cmd&quot; &quot;..\data\test2.cmd&quot;</Debugger_RunParams>
 			<Debugger_CWD>..\data</Debugger_CWD>
 			<Debugger_HostApplication>..\_npp\Win32\notepad++.exe</Debugger_HostApplication>
 			<DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>

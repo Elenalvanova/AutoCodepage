@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugins>
 	<plugin name="AutoCodepage">
-		<unicodeVersion>1.2.1</unicodeVersion>
+		<unicodeVersion>1.2.2</unicodeVersion>
 		<description>AutoCodepage: A plugin to automatically set a document's code page to your needs on loading or renaming a document, changing its language or activating its tab. Usefull especially when coding batch scripts.</description>
 		<author>Andreas Heim</author>
 		<sourceUrl>https://github.com/dinkumoil/AutoCodepage</sourceUrl>
-		<latestUpdate>Enhanced: Language names get retrieved fully dynamical now, no plugin update required after additional languages have been added to Notepad++.</latestUpdate>
+		<latestUpdate>Fixed: Entry of JavaScript in language combobox uses deprecated language id. This fix is mandatory after upgrading to Notepad++ v7.5.7 or higher.</latestUpdate>
 		<install>
 			<unicode>
-				<download>https://github.com/dinkumoil/AutoCodepage/releases/download/v1.2.1/AutoCodepage_v1.2.1_UNI.zip</download>
+				<download>https://github.com/dinkumoil/AutoCodepage/releases/download/v1.2.2/AutoCodepage_v1.2.2_UNI.zip</download>
 				<copy from="Win32\AutoCodepage.dll" to="$PLUGINDIR$\" validate="true"/>
 				<copy from="AutoCodepage.txt" to="$PLUGINDIR$\doc"/>
 			</unicode>

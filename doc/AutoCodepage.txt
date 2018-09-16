@@ -1,10 +1,10 @@
 
 ********************************************************************************
 *                                                                              *
-*          AutoCodepage plugin v1.2.1 for Notepad++                            *
+*          AutoCodepage plugin v1.2.2 for Notepad++                            *
 *          Builds for 32 and 64 bits Notepad++ installations available         *
 *                                                                              *
-*          Author: Andreas Heim, 2016 - 2017                                   *
+*          Author: Andreas Heim, 2016 - 2018                                   *
 *                                                                              *
 ********************************************************************************
 
@@ -65,6 +65,13 @@ BEFORE writing content.
 ===========
   History
 ===========
+
+v1.2.2 - July 2018
+~~~~~~~~~~~~~~~~~~
+- fixed:    Entry of JavaScript in language combobox uses deprecated language
+            id. This fix is mandatory after upgrading to Notepad++ v7.5.7 or
+            higher.
+
 
 v1.2.1 - August 2017
 ~~~~~~~~~~~~~~~~~~~~
