@@ -6,6 +6,7 @@
 		<author>Andreas Heim</author>
 		<sourceUrl>https://github.com/dinkumoil/AutoCodepage</sourceUrl>
 		<latestUpdate>Fixed: Entry of JavaScript in language combobox uses deprecated language id. This fix is mandatory after upgrading to Notepad++ v7.5.7 or higher.</latestUpdate>
+		<minVersion>7.5.7</minVersion>
 		<install>
 			<unicode>
 				<download>https://github.com/dinkumoil/AutoCodepage/releases/download/v1.2.2/AutoCodepage_v1.2.2_UNI.zip</download>
