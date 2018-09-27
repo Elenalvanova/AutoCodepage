@@ -64,10 +64,10 @@ Set objFolderItem = objNameSpace.ParseName(objFSO.GetFileName(strPEFile))
 'Retrieve FileVersion extended property
 strFileVersion = CStr(objFolderItem.ExtendedProperty("Fileversion"))
 
-'Split version string and discard all trailing zeros
+'Split version string and discard all trailing zeros beyond 2nd digit
 arrFileVersion = Split(strFileVersion, ".")
 
-For intCnt = UBound(arrFileVersion) To 1 Step -1
+For intCnt = UBound(arrFileVersion) To 2 Step -1
   If arrFileVersion(intCnt) <> "0" Then Exit For
   ReDim Preserve arrFileVersion(intCnt - 1)
 Next

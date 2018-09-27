@@ -1,5 +1,5 @@
 {
-    This file was originally created by Damjan Zobo Cvetko
+    The content of this file was originally created by Damjan Zobo Cvetko.
     Modified by Andreas Heim for using in the AutoCodepage plugin for Notepad++
 
     This program is free software; you can redistribute it and/or modify
@@ -70,7 +70,7 @@ type
     function    AddFuncItem(Name: nppString; Func: PFuncPluginCmd): Integer; overload;
     function    AddFuncItem(Name: nppString; Func: PFuncPluginCmd; ShortcutKey: TShortcutKey): Integer; overload;
 
-    // Hooks
+    // NPP hooks
     procedure   DoNppnReady; virtual;
     procedure   DoNppnFileBeforeLoad; virtual;
     procedure   DoNppnFileLoadFailed; virtual;
@@ -150,11 +150,15 @@ type
     function    GetCurrentView: integer;
     function    GetCurrentBufferId: LRESULT;
     function    GetBufferDirty: boolean;
+    function    GetLineCount: integer;
+    function    GetLineFromPosition(APosition: Integer): integer;
 
+    procedure   CheckMenuEntry(Idx: integer; State: boolean);
     procedure   PerformMenuCommand(MenuCmdId: integer; Param: integer = 0);
-    procedure   SwitchToFile(FileName: string);
+
     function    OpenFile(FileName: string; ReadOnly: boolean = false): boolean; overload;
     function    OpenFile(FileName: string; Line: Integer; ReadOnly: boolean = false): boolean; overload;
+    procedure   SwitchToFile(FileName: string);
 
   end;
 
@@ -458,7 +462,13 @@ begin
   for Idx := 0 to Pred(Cnt) do
     Buffer[Idx] := StrAlloc(MAX_PATH);
 
-  Cnt := SendMessage(NppData.NppHandle, NPPM_GETOPENFILENAMES, WPARAM(Buffer), LPARAM(Cnt));
+  case CntType of
+    ALL_OPEN_FILES: Cnt := SendMessage(NppData.NppHandle, NPPM_GETOPENFILENAMES,        WPARAM(Buffer), LPARAM(Cnt));
+    PRIMARY_VIEW:   Cnt := SendMessage(NppData.NppHandle, NPPM_GETOPENFILENAMESPRIMARY, WPARAM(Buffer), LPARAM(Cnt));
+    SECOND_VIEW:    Cnt := SendMessage(NppData.NppHandle, NPPM_GETOPENFILENAMESSECOND,  WPARAM(Buffer), LPARAM(Cnt));
+    else            Cnt := 0;
+  end;
+
   SetLength(Result, Cnt);
 
   for Idx := 0 to Pred(Cnt) do
@@ -519,10 +529,21 @@ var
   r: LRESULT;
 
 begin
-  FileName := GetFullCurrentPath;
+  FileName := GetFullCurrentPath();
 
-  r    := SendMessage(NppData.ScintillaMainHandle, SCI_GETCURRENTPOS, 0, 0);
-  Line := SendMessage(NppData.ScintillaMainHandle, SCI_LINEFROMPOSITION, WPARAM(r), 0);
+  case GetCurrentView() of
+    MAIN_VIEW:
+    begin
+      r    := SendMessage(NppData.ScintillaMainHandle, SCI_GETCURRENTPOS, 0, 0);
+      Line := SendMessage(NppData.ScintillaMainHandle, SCI_LINEFROMPOSITION, WPARAM(r), 0);
+    end;
+
+    SUB_VIEW:
+    begin
+      r    := SendMessage(NppData.ScintillaSecondHandle, SCI_GETCURRENTPOS, 0, 0);
+      Line := SendMessage(NppData.ScintillaSecondHandle, SCI_LINEFROMPOSITION, WPARAM(r), 0);
+    end
+  end;
 end;
 
 
@@ -597,19 +618,43 @@ end;
 
 function TNppPlugin.GetBufferDirty: boolean;
 begin
-  Result := (SendMessage(NppData.ScintillaMainHandle, SCI_GETMODIFY, 0, 0) <> 0);
+  case GetCurrentView() of
+    MAIN_VIEW: Result := (SendMessage(NppData.ScintillaMainHandle, SCI_GETMODIFY, 0, 0) <> 0);
+    SUB_VIEW:  Result := (SendMessage(NppData.ScintillaSecondHandle, SCI_GETMODIFY, 0, 0) <> 0);
+    else       Result := false;
+  end;
+end;
+
+
+function TNppPlugin.GetLineCount: integer;
+begin
+  case GetCurrentView() of
+    MAIN_VIEW: Result := SendMessage(NppData.ScintillaMainHandle, SCI_GETLINECOUNT, 0, 0);
+    SUB_VIEW:  Result := SendMessage(NppData.ScintillaSecondHandle, SCI_GETLINECOUNT, 0, 0);
+    else       Result := 0;
+  end;
+end;
+
+
+function TNppPlugin.GetLineFromPosition(APosition: Integer): integer;
+begin
+  case GetCurrentView() of
+    MAIN_VIEW: Result := SendMessage(NppData.ScintillaMainHandle, SCI_LINEFROMPOSITION, APosition, 0);
+    SUB_VIEW:  Result := SendMessage(NppData.ScintillaSecondHandle, SCI_LINEFROMPOSITION, APosition, 0);
+    else       Result := -1;
+  end;
+end;
+
+
+procedure TNppPlugin.CheckMenuEntry(Idx: integer; State: boolean);
+begin
+  SendMessage(NppData.NppHandle, NPPM_SETMENUITEMCHECK, WPARAM(CmdIdFromDlgId(Idx)), LPARAM(State));
 end;
 
 
 procedure TNppPlugin.PerformMenuCommand(MenuCmdId: integer; Param: integer = 0);
 begin
   SendMessage(NppData.NppHandle, NPPM_MENUCOMMAND, WPARAM(Param), LPARAM(MenuCmdId));
-end;
-
-
-procedure TNppPlugin.SwitchToFile(FileName: string);
-begin
-  SendMessage(NppData.NppHandle, NPPM_SWITCHTOFILE, 0, LPARAM(nppPChar(FileName)));
 end;
 
 
@@ -621,7 +666,10 @@ begin
   Ret := OpenFile(FileName, ReadOnly);
 
   if Ret then
-    SendMessage(NppData.ScintillaMainHandle, SCI_GOTOLINE, Line, 0);
+    case GetCurrentView() of
+      MAIN_VIEW: SendMessage(NppData.ScintillaMainHandle, SCI_GOTOLINE, Line, 0);
+      SUB_VIEW:  SendMessage(NppData.ScintillaSecondHandle, SCI_GOTOLINE, Line, 0);
+    end;
 
   Result := Ret;
 end;
@@ -654,6 +702,12 @@ begin
   // if requested set read-only state
   if Result and ReadOnly then
     PerformMenuCommand(IDM_EDIT_SETREADONLY, 1);
+end;
+
+
+procedure TNppPlugin.SwitchToFile(FileName: string);
+begin
+  SendMessage(NppData.NppHandle, NPPM_SWITCHTOFILE, 0, LPARAM(nppPChar(FileName)));
 end;
 
 

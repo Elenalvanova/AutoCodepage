@@ -27,10 +27,18 @@ uses
 
 
 type
-  uptr_t = NativeUInt;
-  sptr_t = NativeInt;
+  uptr_t     = NativeUInt;
+  sptr_t     = NativeInt;
 
   TSurfaceID = pointer;
+
+  sciString  = WideString;
+  sciChar    = WChar;
+  sciPChar   = PWChar;
+
+  sciBString = AnsiString;
+  sciBChar   = AnsiChar;
+  sciPBChar  = PAnsiChar;
 
 
   PCharacterRange = ^TCharacterRange;

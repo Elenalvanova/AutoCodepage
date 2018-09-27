@@ -1,5 +1,5 @@
 {
-    This file was originally created by Damjan Zobo Cvetko
+    The content of this file was originally created by Damjan Zobo Cvetko.
     Modified by Andreas Heim for using in the AutoCodepage plugin for Notepad++
 
     This program is free software; you can redistribute it and/or modify

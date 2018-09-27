@@ -33,31 +33,125 @@ const
   NPPMSG                         = (WM_USER + 1000);
 
   NPPM_GETCURRENTSCINTILLA       = (NPPMSG + 4);
+	// void NPPM_GETCURRENTSCINTILLA(0, INT *currentEdit)
+  // currentEdit indicates the current Scintilla view:
+  //   0 is the main Scintilla view
+  //   1 is the second Scintilla view.
+
   NPPM_GETCURRENTLANGTYPE        = (NPPMSG + 5);
+	// void NPPM_GETCURRENTLANGTYPE(0, INT *langType)
+  // langType indicates the language type of current Scintilla view document
+  // please see the enum LangType for all possible value.
+
   NPPM_SETCURRENTLANGTYPE        = (NPPMSG + 6);
+	// void NPPM_GETCURRENTLANGTYPE(0, INT langTypeToSet)
+  // langTypeToSet is language type to set in current Scintilla view document
+  // please see the enum LangType for all possible value
 
   NPPM_GETNBOPENFILES            = (NPPMSG + 7);
-    ALL_OPEN_FILES = 0;
-    PRIMARY_VIEW   = 1;
-    SECOND_VIEW    = 2;
+	// INT NPPM_GETNBOPENFILES(0, INT nbType)
+  // the return value depends on nbType:
+    ALL_OPEN_FILES = 0;  // the total number of files opened in Notepad++
+    PRIMARY_VIEW   = 1;  // the number of files opened in the primary view
+    SECOND_VIEW    = 2;  // the number of files opened in the second view
 
   NPPM_GETOPENFILENAMES          = (NPPMSG + 8);
+	// INT NPPM_GETOPENFILENAMES(TCHAR **fileNames, INT nbFile)
+  // nbFile is the size of your fileNames array. You should get this value by
+  // using NPPM_GETNBOPENFILES message with constant ALL_OPEN_FILES, then allocate
+  // fileNames array with this value.
+  // fileNames receives the full path names of all the opened files in Notepad++.
+  // User is responsible to allocate fileNames array with enough size.
+  // The return value is the number of file full path names copied in fileNames
+  // array.
 
   NPPM_MODELESSDIALOG            = (NPPMSG + 12);
+	// void NPPM_MODELESSDIALOG(INT op, HWND hDlg)
+  // For each created dialog in your plugin, you should register it to Notepad++
+  // (and unregister while destroying it) by using this message. If this message
+  // is ignored, then your dialog won't react with the key stroke messages such
+  // as TAB key. For the good functioning of your plugin dialog, you're recommended
+  // to not ignore this message.
+  //   hDlg: handle of the dialog to be registed.
+  //   op:   operation mode. MODELESSDIALOGADD is to register;
+  //                         MODELESSDIALOGREMOVE is to unregister.
     MODELESSDIALOGADD    = 0;
     MODELESSDIALOGREMOVE = 1;
 
   NPPM_GETNBSESSIONFILES         = (NPPMSG + 13);
+	// INT NPPM_GETNBSESSIONFILES(0, const TCHAR *sessionFileName)
+  // This message returns the number of files to load in the session sessionFileName.
+  // sessionFileName should be a full path name of an xml file. 0 is returned if
+  // sessionFileName is NULL or an empty string
+
   NPPM_GETSESSIONFILES           = (NPPMSG + 14);
-  NPPM_SAVESESSION               = (NPPMSG + 15);
-  NPPM_SAVECURRENTSESSION        = (NPPMSG + 16);  // see TSessionInfo
+	// INT NPPM_GETSESSIONFILES(TCHAR **sessionFileArray, const TCHAR *sessionFileName)
+  // Send this message to get files' full path names from a session file.
+  // sessionFileName is the session file from which you retrieve the files.
+  // sessionFileArray is the array in which the files' full path of the same
+  // group are written. You should send message NPPM_GETNBSESSIONFILES before
+  // to allocate this array with the proper size.
+  // The return value is the number of file full path names copied in sessionFileArray.
+
+  NPPM_SAVESESSION               = (NPPMSG + 15);  // see TSessionInfo
+	// void NPPM_SAVESESSION(0, TSessionInfo sessionInfomation)
+  // This message let plugins save a session file (xml format) by providing an
+  // array of full file path names.
+
+  NPPM_SAVECURRENTSESSION        = (NPPMSG + 16);
+	// void NPPM_SAVECURRENTSESSION(0, const TCHAR *sessionFileName)
+  // You can save the current opened files in Notepad++ as a group of files
+  // (session) by using this message. Notepad++ saves the current opened files'
+  // full pathe names and their current stats in an xml file. The xml full path
+  // name is provided by sessionFileName.
+
   NPPM_GETOPENFILENAMESPRIMARY   = (NPPMSG + 17);
+	// INT NPPM_GETOPENFILENAMESPRIMARY(TCHAR **fileNames, INT nbFile)
+  // nbFile is the size of your fileNames array. You should get this value by
+  // using NPPM_GETNBOPENFILES message with constant PRIMARY_VIEW, then allocate
+  // fileNames array with this value.
+  // fileNames receives the full path names of the opened files in the primary
+  // view. User is responsible to allocate fileNames array with enough size.
+  // The return value is the number of file full path names copied in fileNames
+  // array.
+
   NPPM_GETOPENFILENAMESSECOND    = (NPPMSG + 18);
+	// INT NPPM_GETOPENFILENAMESSECOND(TCHAR **fileNames, INT nbFile)
+  // nbFile is the size of your fileNames array. You should get this value by
+  // using NPPM_GETNBOPENFILES message with constant SECOND_VIEW, then allocate
+  // fileNames array with this value.
+  // fileNames receives the full path names of the opened files in the second
+  // view. User is responsible to allocate fileNames array with enough size.
+  // The return value is the number of file full path names copied in fileNames
+  // array.
+
   NPPM_CREATESCINTILLAHANDLE     = (NPPMSG + 20);
+	// HWND NPPM_CREATESCINTILLAHANDLE(0, HWND pluginWindowHandle)
+  // A plugin can create a Scintilla for its usage by sending this message to
+  // Notepad++. The return value is the created Scintilla handle. The handle
+  // should be destroyed by NPPM_DESTROYSCINTILLAHANDLE message during exit of
+  // the plugin. If pluginWindowHandle is set (non NULL), it will be set as
+  // parent window of this created Scintilla handle, otherwise the parent window
+  // is Notepad++.
+
   NPPM_DESTROYSCINTILLAHANDLE    = (NPPMSG + 21);
+	// void NPPM_DESTROYSCINTILLAHANDLE(0, HWND scintillaHandle2Destroy)
+  // If plugin called NPPM_CREATESCINTILLAHANDLE to create a Scintilla handle,
+  // it should call this message to destroy this handle while it exits.
+
   NPPM_GETNBUSERLANG             = (NPPMSG + 22);
+	// INT NPPM_GETNBUSERLANG(0, INT *userLangCmdId)
+  // Send this message to get the number of installed user defined languages.
+  // The optional parameter userLangCmdId can be NULL or it can point to an
+  // integer variable that after the call contains the menu command id of the
+  // menu entry "User defined" in the "Languages" menu.
 
   NPPM_GETCURRENTDOCINDEX        = (NPPMSG + 23);
+	// INT NPPM_GETCURRENTDOCINDEX(0, INT iView)
+  // Send this message to get the current index in the view that you indicate
+  // in iView: MAIN_VIEW or SUB_VIEW.
+  // Returned value is -1 if the view is invisible (hidden), otherwise is the
+  // current tab index.
     MAIN_VIEW = 0;
     SUB_VIEW  = 1;
 
@@ -70,10 +164,11 @@ const
     STATUSBAR_TYPING_MODE  = 5;
 
   NPPM_GETMENUHANDLE             = (NPPMSG + 25);
-    NPPPLUGINMENU                = 0;
-    NPPMAINMENU                  = 1;
 	// INT NPPM_GETMENUHANDLE(INT menuChoice, 0)
-	// Return: menu handle (HMENU) of choice (plugin menu handle or Notepad++ main menu handle)
+	// Return: menu handle (HMENU) of choice (plugin menu handle or
+  // Notepad++ main menu handle)
+    NPPPLUGINMENU = 0;
+    NPPMAINMENU   = 1;
 
   NPPM_ENCODESCI                 = (NPPMSG + 26);
   // ascii file to unicode
@@ -86,53 +181,89 @@ const
   // return old unicodeMode
 
   NPPM_ACTIVATEDOC               = (NPPMSG + 28);
-  // void NPPM_ACTIVATEDOC(int view, int index2Activate)
+  // void NPPM_ACTIVATEDOC(INT view, INT index2Activate)
+  // When Notepad++ receives this message, it switches to iView (MAIN_VIEW or
+  // SUB_VIEW) as current view, then it switches to index2Activate from the
+  // current document.
+  //   MAIN_VIEW = 0;
+  //   SUB_VIEW  = 1;
 
   NPPM_LAUNCHFINDINFILESDLG      = (NPPMSG + 29);
-  // void NPPM_LAUNCHFINDINFILESDLG(TCHAR *dir2Search, TCHAR *filtre)
+  // void NPPM_LAUNCHFINDINFILESDLG(TCHAR *dir2Search, TCHAR *filter)
+  // This message triggers the Find in files dialog. The fields Directory and
+  // filters are filled by respectively dir2Search and filter if those parameters
+  // are not NULL or empty.
 
   NPPM_DMMSHOW                   = (NPPMSG + 30);
-  // void NPPM_DMMSHOW(0, TTbData->hClient))
+  // void NPPM_DMMSHOW(0, HWND hDlg)
+  // This message is used for your plugin's dockable dialog. Send this message
+  // to show the dialog. hDlg is the handle of your dialog to be shown.
 
   NPPM_DMMHIDE                   = (NPPMSG + 31);
-  // void NPPM_DMMHIDE(0, TTbData->hClient))
+  // void NPPM_DMMHIDE(0, HWND hDlg)
+  // This message is used for your plugin's dockable dialog. Send this message
+  // to hide the dialog. hDlg is the handle of your dialog to be hidden.
 
   NPPM_DMMUPDATEDISPINFO         = (NPPMSG + 32);
-  // void NPPM_DMMUPDATEDISPINFO(0, TTbData->hClient))
+  // void NPPM_DMMUPDATEDISPINFO(0, HWND hDlg)
+  // This message is used for your plugin's dockable dialog. Send this message
+  // to update (redraw) the dialog. hDlg is the handle of your dialog to be updated.
 
   NPPM_DMMREGASDCKDLG            = (NPPMSG + 33);
-  // void NPPM_DMMREGASDCKDLG(0, &TTbData)
+  // void NPPM_DMMREGASDCKDLG(0, TTbData *dockingData)
+  // From v4.0, Notepad++ supports the dockable dialog feature for plugins.
+  // This message passes the necessary data dockingData to Notepad++ in order
+  // to make your dialog dockable. Minimum informations you need to fill out
+  // before sending it by NPPM_DMMREGASDCKDLG message is hClient, pszName,
+  // dlgID, uMask and pszModuleName. Notice that rcFloat and iPrevCont shouldn't
+  // be filled. They are used internally.
 
   NPPM_LOADSESSION               = (NPPMSG + 34);
-  // void NPPM_LOADSESSION(0, const TCHAR* file name)
+  // void NPPM_LOADSESSION(0, const TCHAR *sessionFileName)
+  // Open all files of same session in Notepad++ via a
+  // xml format session file sessionFileName.
 
   NPPM_DMMVIEWOTHERTAB           = (NPPMSG + 35);
   // void NPPM_DMMVIEWOTHERTAB(0, TTbData->pszName)
 
   NPPM_RELOADFILE                = (NPPMSG + 36);
   // BOOL NPPM_RELOADFILE(BOOL withAlert, TCHAR *filePathName2Reload)
+  // This Message reloads the file indicated in filePathName2Reload.
+  // If withAlert is TRUE, then an alert message box will be launched.
 
   NPPM_SWITCHTOFILE              = (NPPMSG + 37);
   // BOOL NPPM_SWITCHTOFILE(0, TCHAR *filePathName2switch)
+  // When this message is received, Notepad++ switches to the document which
+  // matches with the given filePathName2switch.
 
   NPPM_SAVECURRENTFILE           = (NPPMSG + 38);
   // BOOL NPPM_SAVECURRENTFILE(0, 0)
+  // Send this message to Notepad++ to save the current document.
 
   NPPM_SAVEALLFILES              = (NPPMSG + 39);
   // BOOL NPPM_SAVEALLFILES(0, 0)
+  // Send this message to Notepad++ to save all opened document.
 
   NPPM_SETMENUITEMCHECK          = (NPPMSG + 40);
-  // void NPPM_SETMENUITEMCHECK(UINT funcItem[X]._cmdID, TRUE/FALSE)
+  // void NPPM_SETMENUITEMCHECK(INT cmdID, TRUE/FALSE)
+  // Use this message to set/remove the check on menu item.
+  // cmdID is the command ID which corresponds to the menu item.
 
   NPPM_ADDTOOLBARICON            = (NPPMSG + 41);
-  // void NPPM_ADDTOOLBARICON(UINT funcItem[X]._cmdID, TToolbarIcons *icon)
+  // void NPPM_ADDTOOLBARICON(INT funcItem[X]._cmdID, TToolbarIcons *icon)
   // see TToolbarIcons
 
   NPPM_GETWINDOWSVERSION         = (NPPMSG + 42);
   // winVer NPPM_GETWINDOWSVERSION(0, 0)
+  // The return value is windows version of enum winVer. The possible values are
+  //   WV_UNKNOWN, WV_WIN32S, WV_95, WV_98, WV_ME, WV_NT, WV_W2K, WV_XP, WV_S2003,
+  //   WV_XPX64 and WV_VISTA
 
   NPPM_DMMGETPLUGINHWNDBYNAME    = (NPPMSG + 43);
   // HWND NPPM_DMMGETPLUGINHWNDBYNAME(const TCHAR *windowName, const TCHAR *moduleName)
+  // This message returns the dialog handle corresponding to the windowName and
+  // moduleName. You may need this message if you want to communicate with another
+  // plugin "dockable" dialog, by knowing its name and its plugin module name.
   // if moduleName is NULL, then return value is NULL
   // if windowName is NULL, then the first found window handle which matches
   //                        with the moduleName will be returned
@@ -145,25 +276,39 @@ const
 
   NPPM_GETPLUGINSCONFIGDIR       = (NPPMSG + 46);
   // void NPPM_GETPLUGINSCONFIGDIR(int strLen, TCHAR *str)
+  // pluginsConfDir receives the directory path of plugin config files.
+  // User is responsible to allocate a buffer with enough size. MAX_PATH is
+  // suggested to use.
 
   NPPM_MSGTOPLUGIN               = (NPPMSG + 47);
   // BOOL NPPM_MSGTOPLUGIN(TCHAR *destModuleName, TCommunicationInfo *info)
+  // This message allows the communication between 2 plugins. For example,
+  // plugin X can execute a command of plugin Y if plugin X knows the command ID
+  // and the file name of plugin Y. destModuleName is the complete module name
+  // (with the extesion .dll) of plugin Y.
   // return value is TRUE when the message arrive to the destination plugins.
   // if destModule or info is NULL, then return value is FALSE
   // see TCommunicationInfo
 
   NPPM_MENUCOMMAND               = (NPPMSG + 48);
   // void NPPM_MENUCOMMAND(0, int cmdID)
+  // This message allows plugins to call all the Notepad++ menu commands.
   // See the command symbols defined in "NppMenuCmdID.pas" file
   // to access all the Notepad++ menu command items
 
   NPPM_TRIGGERTABBARCONTEXTMENU  = (NPPMSG + 49);
-  // void NPPM_TRIGGERTABBARCONTEXTMENU(int view, int index2Activate)
+  // void NPPM_TRIGGERTABBARCONTEXTMENU(INT view, INT index2Activate)
+  // This message switches to iView (MAIN_VIEW or SUB_VIEW) as current view,
+  // and to index2Activate from the current document. Finally it triggers the
+  // tabbar context menu for the current document.
 
   NPPM_GETNPPVERSION             = (NPPMSG + 50);
-  // int NPPM_GETNPPVERSION(0, 0)
-  // return version
-  //  example : v4.6
+  // INT NPPM_GETNPPVERSION(0, 0)
+  // You can get Notepad++ version via this message. The return value is made up
+  // of 2 parts: the major version (high word) and the minor version (low word).
+  // Note that this message is supported by the v4.7 or higher version. Earlier
+  // versions return 0.
+  //  example: v4.6
   //  HIWORD(version) == 4
   //  LOWORD(version) == 6
 
@@ -175,7 +320,10 @@ const
 
   NPPM_ISTABBARHIDDEN            = (NPPMSG + 52);
   // BOOL NPPM_ISTABBARHIDDEN(0, 0)
-  // returned value : TRUE if tab bar is hidden, otherwise FALSE
+  // By sending this message, a plugin is able to tell the current status of
+  // tabbar from the returned value:
+  //   TRUE if tab bar is hidden
+  //   otherwise FALSE
 
   NPPM_GETPOSFROMBUFFERID        = (NPPMSG + 57);
   // INT NPPM_GETPOSFROMBUFFERID(UINT_PTR bufferID, INT priorityView)
@@ -267,7 +415,10 @@ const
 
   NPPM_ISTOOLBARHIDDEN                 = (NPPMSG + 71);
   // BOOL NPPM_ISTOOLBARHIDDEN(0, 0)
-  // returned value : TRUE if tool bar is hidden, otherwise FALSE
+  // By sending this message, a plugin is able to tell the current status of
+  // toolbar from the returned value:
+  //   TRUE if tool bar is hidden,
+  //   otherwise FALSE
 
   NPPM_HIDEMENU                        = (NPPMSG + 72);
   // BOOL NPPM_HIDEMENU(0, BOOL hideOrNot)
@@ -277,7 +428,10 @@ const
 
   NPPM_ISMENUHIDDEN                    = (NPPMSG + 73);
   // BOOL NPPM_ISMENUHIDDEN(0, 0)
-  // returned value : TRUE if menu is hidden, otherwise FALSE
+  // By sending this message, a plugin is able to tell the current status of
+  // the menu from the returned value:
+  //   TRUE if menu is hidden,
+  //   otherwise FALSE
 
   NPPM_HIDESTATUSBAR                   = (NPPMSG + 74);
   // BOOL NPPM_HIDESTATUSBAR(0, BOOL hideOrNot)
@@ -287,13 +441,18 @@ const
 
   NPPM_ISSTATUSBARHIDDEN               = (NPPMSG + 75);
   // BOOL NPPM_ISSTATUSBARHIDDEN(0, 0)
-  // returned value : TRUE if STATUSBAR is hidden, otherwise FALSE
+  // By sending this message, a plugin is able to tell the current status of
+  // statusbar from the returned value:
+  //   TRUE if STATUSBAR is hidden,
+  //   otherwise FALSE
 
   NPPM_GETSHORTCUTBYCMDID              = (NPPMSG + 76);
-  // BOOL NPPM_GETSHORTCUTBYCMDID(int cmdID, ShortcutKey *sk)
+  // BOOL NPPM_GETSHORTCUTBYCMDID(INT cmdID, ShortcutKey *sk)
   // get your plugin command current mapped shortcut into sk via cmdID
   // You may need it after getting NPPN_READY notification
-  // returned value : TRUE if this function call is successful and shortcut is enable, otherwise FALSE
+  // returned value:
+  //   TRUE if this function call is successful and shortcut is enable,
+  //   otherwise FALSE
 
   NPPM_DOOPEN                          = (NPPMSG + 77);
   // BOOL NPPM_DOOPEN(0, const TCHAR *fullPathName2Open)
@@ -302,28 +461,36 @@ const
 
   NPPM_SAVECURRENTFILEAS               = (NPPMSG + 78);
   // BOOL NPPM_SAVECURRENTFILEAS (BOOL asCopy, const TCHAR* filename)
+  // Performs a Save As (asCopy == 0) or Save a Copy As (asCopy == 1) on the
+  // current buffer, outputting to filename.
 
   NPPM_GETCURRENTNATIVELANGENCODING   = (NPPMSG + 79);
   // INT NPPM_GETCURRENTNATIVELANGENCODING(0, 0)
-  // returned value : the current native language encoding
+  // Returns the code page associated with the current localisation of Notepad++.
+  // As of v6.6.6, returned values are 1252 (ISO 8859-1), 437 (OEM US) or 950 (Big5).
 
   NPPM_ALLOCATESUPPORTED               = (NPPMSG + 80);
+  // BOOL NPPM_ALLOCATESUPPORTED(0, 0)
   // returns TRUE if NPPM_ALLOCATECMDID is supported
   // Use to identify if subclassing is necessary
 
   NPPM_ALLOCATECMDID                   = (NPPMSG + 81);
-  // BOOL NPPM_ALLOCATECMDID(int numberRequested, int* startNumber)
-  // sets startNumber to the initial command ID if successful
-  // Returns: TRUE if successful, FALSE otherwise. startNumber will also be set to 0 if unsuccessful
+  // BOOL NPPM_ALLOCATECMDID(INT numberRequested, INT *startNumber)
+  // Allows a plugin to obtain a number of consecutive menu item IDs for creating
+  // menus dynamically, with the guarantee of these IDs not clashing with any
+  // other plugin. Sets startNumber to the initial command ID if successful and
+  // to 0 if unsuccessful.
+  // Returns: TRUE if successful, FALSE otherwise.
 
   NPPM_ALLOCATEMARKER                  = (NPPMSG + 82);
-  // BOOL NPPM_ALLOCATEMARKER(int numberRequested, int* startNumber)
-  // sets startNumber to the initial command ID if successful
-  // Allocates a marker number to a plugin
-  // Returns: TRUE if successful, FALSE otherwise. startNumber will also be set to 0 if unsuccessful
+  // BOOL NPPM_ALLOCATEMARKER(INT numberRequested, INT *startNumber)
+  // Allows a plugin to obtain a number of consecutive marker IDs dynamically,
+  // with the guarantee of these IDs not clashing with any other plugin.
+  // Sets startNumber to the initial command ID if successful and to 0 if unsuccessful.
+  // Returns: TRUE if successful, FALSE otherwise.
 
   NPPM_GETLANGUAGENAME                 = (NPPMSG + 83);
-  // INT NPPM_GETLANGUAGENAME(int langType, TCHAR *langName)
+  // INT NPPM_GETLANGUAGENAME(INT langType, TCHAR *langName)
   // Get programming language name from the given language type (LangType)
   // Return value is the number of copied character / number of character to copy (\0 is not included)
   // You should call this function 2 times - the first time you pass langName as NULL to get the number of characters to copy.
@@ -331,7 +498,7 @@ const
   // by passing allocated buffer as argument langName
 
   NPPM_GETLANGUAGEDESC                 = (NPPMSG + 84);
-  // INT NPPM_GETLANGUAGEDESC(int langType, TCHAR *langDesc)
+  // INT NPPM_GETLANGUAGEDESC(INT langType, TCHAR *langDesc)
   // Get programming language short description from the given language type (LangType)
   // Return value is the number of copied character / number of character to copy (\0 is not included)
   // You should call this function 2 times - the first time you pass langDesc as NULL to get the number of characters to copy.
@@ -675,9 +842,9 @@ type
   // Records for data exchange Notepad++ <-> Plugin
   // ---------------------------------------------------------------------------
   TSessionInfo = record
-    SessionFilePathName : nppPChar;
-    NumFiles            : Integer;
-    Files               : array of nppPChar;
+    SessionFilePathName : nppPChar;           // the full path name of session file to save
+    NumFiles            : Integer;            // the number of files in the session
+    Files               : array of nppPChar;  // session files' full path
   end;
 
 
