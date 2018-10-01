@@ -105,7 +105,7 @@ begin
   inherited Create(NppParent);
 
   FDlgId := DlgId;
-  CmdId  := Self.Plugin.CmdIdFromDlgId(DlgId);
+  CmdId  := Self.Plugin.CmdIdFromMenuItemIdx(DlgId);
 
   RegisterDockingForm(FNppDefaultDockingMask);
   RemoveControlParent(Self);

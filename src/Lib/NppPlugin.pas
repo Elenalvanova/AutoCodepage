@@ -70,11 +70,14 @@ type
     function    AddFuncItem(Name: nppString; Func: PFuncPluginCmd): Integer; overload;
     function    AddFuncItem(Name: nppString; Func: PFuncPluginCmd; ShortcutKey: TShortcutKey): Integer; overload;
 
-    // NPP hooks
+    // Notepad++ notification handlers
     procedure   DoNppnReady; virtual;
+    procedure   DoNppnToolbarModification; virtual;
+    procedure   DoNppnBeforeShutDown; virtual;
+    procedure   DoNppnCancelShutDown; virtual;
+    procedure   DoNppnShutdown; virtual;
     procedure   DoNppnFileBeforeLoad; virtual;
     procedure   DoNppnFileLoadFailed; virtual;
-    procedure   DoNppnSnapshotDirtyFileLoaded; virtual;
     procedure   DoNppnFileBeforeOpen; virtual;
     procedure   DoNppnFileOpened; virtual;
     procedure   DoNppnFileBeforeClose; virtual;
@@ -87,17 +90,15 @@ type
     procedure   DoNppnFileBeforeDelete; virtual;
     procedure   DoNppnFileDeleteFailed; virtual;
     procedure   DoNppnFileDeleted; virtual;
-    procedure   DoNppnBeforeShutDown; virtual;
-    procedure   DoNppnCancelShutDown; virtual;
-    procedure   DoNppnShutdown; virtual;
     procedure   DoNppnBufferActivated; virtual;
     procedure   DoNppnLangChanged; virtual;
     procedure   DoNppnReadOnlyChanged; virtual;
     procedure   DoNppnDocOrderChanged; virtual;
     procedure   DoNppnShortcutRemapped; virtual;
     procedure   DoNppnWordStylesUpdated; virtual;
-    procedure   DoNppnToolbarModification; virtual;
+    procedure   DoNppnSnapshotDirtyFileLoaded; virtual;
 
+    // Basic plugin properties
     property    PluginName:         nppString       read FPluginName         write FPluginName;
     property    PluginMajorVersion: integer         read FPluginMajorVersion write FPluginMajorVersion;
     property    PluginMinorVersion: integer         read FPluginMinorVersion write FPluginMinorVersion;
@@ -119,7 +120,9 @@ type
     function    GetName: nppPChar;
 
     // Utils and Npp message wrappers
-    function    CmdIdFromDlgId(DlgId: Integer): Integer;
+    function    CmdIdFromMenuItemIdx(MenuItemIdx: Integer): Integer;
+    procedure   CheckMenuItem(MenuItemIdx: integer; State: boolean);
+    procedure   PerformMenuCommand(MenuCmdId: integer; Param: integer = 0);
 
     function    GetMajorVersion: integer;
     function    GetMinorVersion: integer;
@@ -133,28 +136,37 @@ type
     function    GetPluginsDocDir: string;
     function    GetPluginDllPath: string;
 
-    function    GetOpenFilesCnt(CntType: integer): integer;
-    function    GetOpenFiles(CntType: integer): TStringDynArray;
     function    GetFullCurrentPath: string;
     function    GetCurrentDirectory: string;
     function    GetFullFileName: string;
     function    GetFileNameWithoutExt: string;
     function    GetFileNameExt: string;
-    procedure   GetFileLine(out FileName: string; out Line: integer);
-    function    GetWord: string;
+
     function    GetEncoding: integer;
     function    GetEOLFormat: integer;
     function    GetLanguageType: integer;  // see TNppLang
     function    GetLanguageName(ALangType: TNppLang): string;
     function    GetLanguageDesc(ALangType: TNppLang): string;
-    function    GetCurrentView: integer;
-    function    GetCurrentBufferId: LRESULT;
-    function    GetBufferDirty: boolean;
-    function    GetLineCount: integer;
-    function    GetLineFromPosition(APosition: Integer): integer;
 
-    procedure   CheckMenuEntry(Idx: integer; State: boolean);
-    procedure   PerformMenuCommand(MenuCmdId: integer; Param: integer = 0);
+    function    GetCurrentViewIdx: integer;
+    function    GetCurrentDocIndex(AViewIdx: integer): integer;
+    function    GetCurrentLine: integer;
+    function    GetCurrentColumn: integer;
+
+    function    GetCurrentBufferId: integer;
+    function    GetBufferIdFromPos(AViewIdx, ADocIdx: integer): LRESULT;
+    function    GetPosFromBufferId(ABufferId: integer; out ADocIdx: integer): integer;
+    function    GetFullPathFromBufferId(ABufferId: integer): string;
+    function    GetCurrentBufferDirty(AViewIdx: integer): boolean;
+
+    function    GetOpenFilesCnt(CntType: integer): integer;
+    function    GetOpenFiles(CntType: integer): TStringDynArray;
+
+    function    GetLineCount(AViewIdx: integer): integer;
+    function    GetLineFromPosition(AViewIdx, APosition: Integer): integer;
+
+    procedure   GetFilePos(out FileName: string; out Line, Column: integer);
+    function    GetCurrentWord: string;
 
     function    OpenFile(FileName: string; ReadOnly: boolean = false): boolean; overload;
     function    OpenFile(FileName: string; Line: Integer; ReadOnly: boolean = false): boolean; overload;
@@ -241,13 +253,11 @@ end;
 
 procedure TNppPlugin.BeNotified(SN: PSCNotification);
 begin
-  // For some notifications hwndFrom doesn't contain the Npp window handle
-  // if (HWND(SN^.nmhdr.hwndFrom) <> NppData.NppHandle) then exit;
-
   // Provide notification data to derived classes
   FSCNotification := SN;
 
-  case SN^.nmhdr.code of
+  case SN.nmhdr.code of
+    // Notepad++ notifications
     NPPN_READY:                   DoNppnReady;
     NPPN_FILEBEFORELOAD:          DoNppnFileBeforeLoad;
     NPPN_FILELOADFAILED:          DoNppnFileLoadFailed;
@@ -361,9 +371,21 @@ end;
 // Utils and message wrapper methods
 // -----------------------------------------------------------------------------
 
-function TNppPlugin.CmdIdFromDlgId(DlgId: Integer): Integer;
+function TNppPlugin.CmdIdFromMenuItemIdx(MenuItemIdx: Integer): Integer;
 begin
-  Result := FFuncArray[DlgId].CmdId;
+  Result := FFuncArray[MenuItemIdx].CmdId;
+end;
+
+
+procedure TNppPlugin.CheckMenuItem(MenuItemIdx: integer; State: boolean);
+begin
+  SendMessage(NppData.NppHandle, NPPM_SETMENUITEMCHECK, WPARAM(CmdIdFromMenuItemIdx(MenuItemIdx)), LPARAM(State));
+end;
+
+
+procedure TNppPlugin.PerformMenuCommand(MenuCmdId: integer; Param: integer = 0);
+begin
+  SendMessage(NppData.NppHandle, NPPM_MENUCOMMAND, WPARAM(Param), LPARAM(MenuCmdId));
 end;
 
 
@@ -413,7 +435,7 @@ end;
 
 function TNppPlugin.GetPluginsDir: string;
 begin
-  Result := TPath.Combine(GetNppDir, 'plugins');
+  Result := TPath.Combine(GetNppDir(), 'plugins');
 end;
 
 
@@ -433,49 +455,13 @@ end;
 
 function TNppPlugin.GetPluginsDocDir: string;
 begin
-  Result := TPath.Combine(GetPluginsDir, 'doc');
+  Result := TPath.Combine(GetPluginsDir(), 'doc');
 end;
 
 
 function TNppPlugin.GetPluginDllPath: string;
 begin
-  Result := TPath.Combine(GetPluginsDir, ReplaceStr(GetName, ' ', '') + '.dll')
-end;
-
-
-function TNppPlugin.GetOpenFilesCnt(CntType: integer): integer;
-begin
-  Result := SendMessage(NppData.NppHandle, NPPM_GETNBOPENFILES, 0, LPARAM(CntType));
-end;
-
-
-function TNppPlugin.GetOpenFiles(CntType: integer): TStringDynArray;
-var
-  Cnt:    integer;
-  Idx:    integer;
-  Buffer: array of PChar;
-
-begin
-  Cnt := GetOpenFilesCnt(CntType);
-  SetLength(Buffer, Cnt);
-
-  for Idx := 0 to Pred(Cnt) do
-    Buffer[Idx] := StrAlloc(MAX_PATH);
-
-  case CntType of
-    ALL_OPEN_FILES: Cnt := SendMessage(NppData.NppHandle, NPPM_GETOPENFILENAMES,        WPARAM(Buffer), LPARAM(Cnt));
-    PRIMARY_VIEW:   Cnt := SendMessage(NppData.NppHandle, NPPM_GETOPENFILENAMESPRIMARY, WPARAM(Buffer), LPARAM(Cnt));
-    SECOND_VIEW:    Cnt := SendMessage(NppData.NppHandle, NPPM_GETOPENFILENAMESSECOND,  WPARAM(Buffer), LPARAM(Cnt));
-    else            Cnt := 0;
-  end;
-
-  SetLength(Result, Cnt);
-
-  for Idx := 0 to Pred(Cnt) do
-  begin
-    SetString(Result[Idx], Buffer[Idx], StrLen(Buffer[Idx]));
-    StrDispose(Buffer[Idx]);
-  end;
+  Result := TPath.Combine(GetPluginsDir(), ReplaceStr(GetName, ' ', '') + '.dll')
 end;
 
 
@@ -520,41 +506,6 @@ begin
   SetLength(Result, MAX_PATH);
 
   SendMessage(NppData.NppHandle, NPPM_GETEXTPART, MAX_PATH, LPARAM(nppPChar(Result)));
-  SetLength(Result, StrLen(PChar(Result)));
-end;
-
-
-procedure TNppPlugin.GetFileLine(out FileName: string; out Line: integer);
-var
-  r: LRESULT;
-
-begin
-  FileName := GetFullCurrentPath();
-
-  case GetCurrentView() of
-    MAIN_VIEW:
-    begin
-      r    := SendMessage(NppData.ScintillaMainHandle, SCI_GETCURRENTPOS, 0, 0);
-      Line := SendMessage(NppData.ScintillaMainHandle, SCI_LINEFROMPOSITION, WPARAM(r), 0);
-    end;
-
-    SUB_VIEW:
-    begin
-      r    := SendMessage(NppData.ScintillaSecondHandle, SCI_GETCURRENTPOS, 0, 0);
-      Line := SendMessage(NppData.ScintillaSecondHandle, SCI_LINEFROMPOSITION, WPARAM(r), 0);
-    end
-  end;
-end;
-
-
-function TNppPlugin.GetWord: string;
-const
-  BUF_LEN = 1024;
-
-begin
-  SetLength(Result, BUF_LEN+1);
-
-  SendMessage(NppData.NppHandle, NPPM_GETCURRENTWORD, BUF_LEN, LPARAM(nppPChar(Result)));
   SetLength(Result, StrLen(PChar(Result)));
 end;
 
@@ -604,21 +555,78 @@ begin
 end;
 
 
-function TNppPlugin.GetCurrentView: integer;
+function TNppPlugin.GetCurrentViewIdx: integer;
 begin
   Result := SendMessage(NppData.NppHandle, NPPM_GETCURRENTVIEW, 0, 0);
 end;
 
 
-function TNppPlugin.GetCurrentBufferId: LRESULT;
+function TNppPlugin.GetCurrentDocIndex(AViewIdx: integer): integer;
+begin
+  Result := SendMessage(NppData.NppHandle, NPPM_GETCURRENTDOCINDEX, 0, LPARAM(AViewIdx));
+end;
+
+
+function TNppPlugin.GetCurrentLine: integer;
+begin
+  Result := SendMessage(NppData.NppHandle, NPPM_GETCURRENTLINE, 0, 0);
+end;
+
+
+function TNppPlugin.GetCurrentColumn: integer;
+begin
+  Result := SendMessage(NppData.NppHandle, NPPM_GETCURRENTCOLUMN, 0, 0);
+end;
+
+
+function TNppPlugin.GetCurrentBufferId: integer;
 begin
   Result := SendMessage(NppData.NppHandle, NPPM_GETCURRENTBUFFERID, 0, 0);
 end;
 
 
-function TNppPlugin.GetBufferDirty: boolean;
+function TNppPlugin.GetBufferIdFromPos(AViewIdx, ADocIdx: integer): LRESULT;
 begin
-  case GetCurrentView() of
+  Result := SendMessage(NppData.NppHandle, NPPM_GETBUFFERIDFROMPOS, WPARAM(ADocIdx), LPARAM(AViewIdx));
+end;
+
+
+function TNppPlugin.GetPosFromBufferId(ABufferId: integer; out ADocIdx: integer): integer;
+var
+  Pos: LRESULT;
+
+begin
+  Result  := -1;
+  ADocIdx := -1;
+
+  Pos := SendMessage(NppData.NppHandle, NPPM_GETPOSFROMBUFFERID, WPARAM(ABufferId), LPARAM(MAIN_VIEW));
+
+  if Pos <> -1 then
+  begin
+    Result  := Pos shr 30;
+    ADocIdx := Pos and $3FFFFFFF;
+  end;
+end;
+
+
+function TNppPlugin.GetFullPathFromBufferId(ABufferId: integer): string;
+var
+  BufLen: LRESULT;
+
+begin
+  BufLen := SendMessage(NppData.NppHandle, NPPM_GETFULLPATHFROMBUFFERID, WPARAM(ABufferId), LPARAM(0));
+  SetLength(Result, BufLen+1);
+
+  if BufLen = -1 then exit;
+
+  BufLen := SendMessage(NppData.NppHandle, NPPM_GETFULLPATHFROMBUFFERID, WPARAM(ABufferId), LPARAM(nppPChar(Result)));
+  SetLength(Result, BufLen);
+end;
+
+
+function TNppPlugin.GetCurrentBufferDirty(AViewIdx: integer): boolean;
+begin
+  case AViewIdx of
     MAIN_VIEW: Result := (SendMessage(NppData.ScintillaMainHandle, SCI_GETMODIFY, 0, 0) <> 0);
     SUB_VIEW:  Result := (SendMessage(NppData.ScintillaSecondHandle, SCI_GETMODIFY, 0, 0) <> 0);
     else       Result := false;
@@ -626,9 +634,45 @@ begin
 end;
 
 
-function TNppPlugin.GetLineCount: integer;
+function TNppPlugin.GetOpenFilesCnt(CntType: integer): integer;
 begin
-  case GetCurrentView() of
+  Result := SendMessage(NppData.NppHandle, NPPM_GETNBOPENFILES, 0, LPARAM(CntType));
+end;
+
+
+function TNppPlugin.GetOpenFiles(CntType: integer): TStringDynArray;
+var
+  Cnt:    integer;
+  Idx:    integer;
+  Buffer: array of PChar;
+
+begin
+  Cnt := GetOpenFilesCnt(CntType);
+  SetLength(Buffer, Cnt);
+
+  for Idx := 0 to Pred(Cnt) do
+    Buffer[Idx] := StrAlloc(MAX_PATH);
+
+  case CntType of
+    ALL_OPEN_FILES: Cnt := SendMessage(NppData.NppHandle, NPPM_GETOPENFILENAMES,        WPARAM(Buffer), LPARAM(Cnt));
+    PRIMARY_VIEW:   Cnt := SendMessage(NppData.NppHandle, NPPM_GETOPENFILENAMESPRIMARY, WPARAM(Buffer), LPARAM(Cnt));
+    SECOND_VIEW:    Cnt := SendMessage(NppData.NppHandle, NPPM_GETOPENFILENAMESSECOND,  WPARAM(Buffer), LPARAM(Cnt));
+    else            Cnt := 0;
+  end;
+
+  SetLength(Result, Cnt);
+
+  for Idx := 0 to Pred(Cnt) do
+  begin
+    SetString(Result[Idx], Buffer[Idx], StrLen(Buffer[Idx]));
+    StrDispose(Buffer[Idx]);
+  end;
+end;
+
+
+function TNppPlugin.GetLineCount(AViewIdx: integer): integer;
+begin
+  case AViewIdx of
     MAIN_VIEW: Result := SendMessage(NppData.ScintillaMainHandle, SCI_GETLINECOUNT, 0, 0);
     SUB_VIEW:  Result := SendMessage(NppData.ScintillaSecondHandle, SCI_GETLINECOUNT, 0, 0);
     else       Result := 0;
@@ -636,42 +680,33 @@ begin
 end;
 
 
-function TNppPlugin.GetLineFromPosition(APosition: Integer): integer;
+function TNppPlugin.GetLineFromPosition(AViewIdx, APosition: Integer): integer;
 begin
-  case GetCurrentView() of
-    MAIN_VIEW: Result := SendMessage(NppData.ScintillaMainHandle, SCI_LINEFROMPOSITION, APosition, 0);
-    SUB_VIEW:  Result := SendMessage(NppData.ScintillaSecondHandle, SCI_LINEFROMPOSITION, APosition, 0);
+  case AViewIdx of
+    MAIN_VIEW: Result := SendMessage(NppData.ScintillaMainHandle, SCI_LINEFROMPOSITION, WPARAM(APosition), 0);
+    SUB_VIEW:  Result := SendMessage(NppData.ScintillaSecondHandle, SCI_LINEFROMPOSITION, WPARAM(APosition), 0);
     else       Result := -1;
   end;
 end;
 
 
-procedure TNppPlugin.CheckMenuEntry(Idx: integer; State: boolean);
+procedure TNppPlugin.GetFilePos(out FileName: string; out Line, Column: integer);
 begin
-  SendMessage(NppData.NppHandle, NPPM_SETMENUITEMCHECK, WPARAM(CmdIdFromDlgId(Idx)), LPARAM(State));
+  FileName := GetFullCurrentPath();
+  Line     := GetCurrentLine();
+  Column   := GetCurrentColumn();
 end;
 
 
-procedure TNppPlugin.PerformMenuCommand(MenuCmdId: integer; Param: integer = 0);
-begin
-  SendMessage(NppData.NppHandle, NPPM_MENUCOMMAND, WPARAM(Param), LPARAM(MenuCmdId));
-end;
-
-
-function TNppPlugin.OpenFile(FileName: string; Line: integer; ReadOnly: boolean = false): boolean;
-var
-  Ret: boolean;
+function TNppPlugin.GetCurrentWord: string;
+const
+  BUF_LEN = 1024;
 
 begin
-  Ret := OpenFile(FileName, ReadOnly);
+  SetLength(Result, BUF_LEN+1);
 
-  if Ret then
-    case GetCurrentView() of
-      MAIN_VIEW: SendMessage(NppData.ScintillaMainHandle, SCI_GOTOLINE, Line, 0);
-      SUB_VIEW:  SendMessage(NppData.ScintillaSecondHandle, SCI_GOTOLINE, Line, 0);
-    end;
-
-  Result := Ret;
+  SendMessage(NppData.NppHandle, NPPM_GETCURRENTWORD, BUF_LEN, LPARAM(nppPChar(Result)));
+  SetLength(Result, StrLen(PChar(Result)));
 end;
 
 
@@ -705,16 +740,37 @@ begin
 end;
 
 
+function TNppPlugin.OpenFile(FileName: string; Line: integer; ReadOnly: boolean = false): boolean;
+var
+  Ret: boolean;
+
+begin
+  Ret := OpenFile(FileName, ReadOnly);
+
+  if Ret then
+    case GetCurrentViewIdx() of
+      MAIN_VIEW: SendMessage(NppData.ScintillaMainHandle, SCI_GOTOLINE, WPARAM(Line), 0);
+      SUB_VIEW:  SendMessage(NppData.ScintillaSecondHandle, SCI_GOTOLINE, WPARAM(Line), 0);
+    end;
+
+  Result := Ret;
+end;
+
+
 procedure TNppPlugin.SwitchToFile(FileName: string);
 begin
   SendMessage(NppData.NppHandle, NPPM_SWITCHTOFILE, 0, LPARAM(nppPChar(FileName)));
 end;
 
 
+
 // -----------------------------------------------------------------------------
-// Notification hooks
+// Notepad++ notification handlers
 // -----------------------------------------------------------------------------
 
+// Notifies plugins that all the procedures of launching notepad++
+// completed succesfully
+// hwndFrom = HWND hwndNpp
 procedure TNppPlugin.DoNppnReady;
 begin
   // When overriding this ensure to call "inherited"
@@ -725,103 +781,9 @@ begin
 end;
 
 
+// Notifies plugins that toolbar icons can be registered.
+// hwndFrom = HWND hwndNpp
 procedure TNppPlugin.DoNppnToolbarModification;
-begin
-  // override this
-end;
-
-
-procedure TNppPlugin.DoNppnFileBeforeClose;
-begin
-  // override this
-end;
-
-
-procedure TNppPlugin.DoNppnFileOpened;
-begin
-  // override this
-end;
-
-
-procedure TNppPlugin.DoNppnFileClosed;
-begin
-  // override this
-end;
-
-
-procedure TNppPlugin.DoNppnFileBeforeOpen;
-begin
-  // override this
-end;
-
-
-procedure TNppPlugin.DoNppnFileBeforeSave;
-begin
-  // override this
-end;
-
-
-procedure TNppPlugin.DoNppnFileSaved;
-begin
-  // override this
-end;
-
-
-procedure TNppPlugin.DoNppnShutdown;
-begin
-  // override this
-end;
-
-
-procedure TNppPlugin.DoNppnBufferActivated;
-begin
-  // override this
-end;
-
-
-procedure TNppPlugin.DoNppnLangChanged;
-begin
-  // override this
-end;
-
-
-procedure TNppPlugin.DoNppnWordStylesUpdated;
-begin
-  // override this
-end;
-
-
-procedure TNppPlugin.DoNppnShortcutRemapped;
-begin
-  // override this
-end;
-
-
-procedure TNppPlugin.DoNppnFileBeforeLoad;
-begin
-  // override this
-end;
-
-
-procedure TNppPlugin.DoNppnFileLoadFailed;
-begin
-  // override this
-end;
-
-
-procedure TNppPlugin.DoNppnReadOnlyChanged;
-begin
-  // override this
-end;
-
-
-procedure TNppPlugin.DoNppnDocOrderChanged;
-begin
-  // override this
-end;
-
-
-procedure TNppPlugin.DoNppnSnapshotDirtyFileLoaded;
 begin
   // override this
 end;
@@ -834,6 +796,79 @@ end;
 
 
 procedure TNppPlugin.DoNppnCancelShutDown;
+begin
+  // override this
+end;
+
+
+// Notifies plugins that Notepad++ is about to shut down.
+// hwndFrom = HWND hwndNpp
+procedure TNppPlugin.DoNppnShutdown;
+begin
+  // override this
+end;
+
+
+// Notifies plugins that the current file is about to be loaded
+// hwndFrom = HWND hwndNpp
+procedure TNppPlugin.DoNppnFileBeforeLoad;
+begin
+  // override this
+end;
+
+
+// Notifies plugins that file load operation failed
+// hwndFrom = HWND hwndNpp
+// idFrom   = int bufferID
+procedure TNppPlugin.DoNppnFileLoadFailed;
+begin
+  // override this
+end;
+
+
+// Notifies plugins that a file is being opened
+// hwndFrom = HWND hwndNpp
+procedure TNppPlugin.DoNppnFileBeforeOpen;
+begin
+  // override this
+end;
+
+
+// Notifies plugins that the current file just opened
+// hwndFrom = HWND hwndNpp
+procedure TNppPlugin.DoNppnFileOpened;
+begin
+  // override this
+end;
+
+
+// Notifies plugins that the current file is about to be closed
+// hwndFrom = HWND hwndNpp
+procedure TNppPlugin.DoNppnFileBeforeClose;
+begin
+  // override this
+end;
+
+
+// Notifies plugins that the current file is just closed
+// hwndFrom = HWND hwndNpp
+procedure TNppPlugin.DoNppnFileClosed;
+begin
+  // override this
+end;
+
+
+// Notifies plugins that the current file is about to be saved
+// hwndFrom = HWND hwndNpp
+procedure TNppPlugin.DoNppnFileBeforeSave;
+begin
+  // override this
+end;
+
+
+// Notifies plugins that the current file wass just saved
+// hwndFrom = HWND hwndNpp
+procedure TNppPlugin.DoNppnFileSaved;
 begin
   // override this
 end;
@@ -870,6 +905,64 @@ end;
 
 
 procedure TNppPlugin.DoNppnFileDeleted;
+begin
+  // override this
+end;
+
+
+// Notifies plugins that a buffer was activated (put to foreground).
+// hwndFrom = HWND hwndNpp
+// idFrom   = int activatedBufferID
+procedure TNppPlugin.DoNppnBufferActivated;
+begin
+  // override this
+end;
+
+
+// Notifies plugins that the language in the current doc just changed.
+// hwndFrom = HWND hwndNpp
+// idFrom   = int currentBufferID
+procedure TNppPlugin.DoNppnLangChanged;
+begin
+  // override this
+end;
+
+
+procedure TNppPlugin.DoNppnReadOnlyChanged;
+begin
+  // override this
+end;
+
+
+// Notifies plugins that document order is changed,
+// buffer bufferID having index newIndex.
+// hwndFrom = int newIndex
+// idFrom   = int bufferID
+procedure TNppPlugin.DoNppnDocOrderChanged;
+begin
+  // override this
+end;
+
+
+// Notifies plugins that a plugin command shortcut is remapped.
+// hwndFrom = ShortcutKey *ShortcutKeyStructurePointer
+// idFrom   = int cmdID
+procedure TNppPlugin.DoNppnShortcutRemapped;
+begin
+  // override this
+end;
+
+
+// Notifies plugins that user initiated a WordStyleDlg change.
+// hwndFrom = HWND hwndNpp
+// idFrom   = int currentBufferID
+procedure TNppPlugin.DoNppnWordStylesUpdated;
+begin
+  // override this
+end;
+
+
+procedure TNppPlugin.DoNppnSnapshotDirtyFileLoaded;
 begin
   // override this
 end;
