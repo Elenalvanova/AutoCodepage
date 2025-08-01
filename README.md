@@ -1,6 +1,6 @@
 # Plugins for Notepad++
 
-AutoCodepage, ComparePlugin, ComparePlus, JSMinNPP
+AutoCodepage, Compare, ComparePlus, JStool
 
 
 # Manual installation
